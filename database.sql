@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS `vrp_lottery_tickets` (
   UNIQUE KEY `token` (`token`),
   KEY `user_id` (`user_id`),
   KEY `cycle_id` (`cycle_id`),
+  KEY `idx_tickets_user_cycle` (`user_id`, `cycle_id`),
+  KEY `idx_tickets_token` (`token`),
   CONSTRAINT `fk_lottery_tickets_users` FOREIGN KEY (`user_id`) REFERENCES `vrp_users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_lottery_tickets_cycles` FOREIGN KEY (`cycle_id`) REFERENCES `vrp_lottery_cycles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -25,6 +27,8 @@ CREATE TABLE IF NOT EXISTS `vrp_lottery_cycles` (
   `status` enum('open','closed','drawn') NOT NULL DEFAULT 'open',
   PRIMARY KEY (`id`),
   KEY `winner_id` (`winner_id`),
+  KEY `idx_cycles_status` (`status`),
+  KEY `idx_cycles_dates` (`start_date`, `end_date`),
   CONSTRAINT `fk_lottery_cycles_users` FOREIGN KEY (`winner_id`) REFERENCES `vrp_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -40,6 +44,8 @@ CREATE TABLE IF NOT EXISTS `vrp_lottery_draws` (
   KEY `ticket_id` (`ticket_id`),
   KEY `cycle_id` (`cycle_id`),
   KEY `winner_id` (`winner_id`),
+  KEY `idx_draws_cycle` (`cycle_id`),
+  KEY `idx_draws_winner` (`winner_id`),
   CONSTRAINT `fk_lottery_draws_tickets` FOREIGN KEY (`ticket_id`) REFERENCES `vrp_lottery_tickets` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_lottery_draws_cycles` FOREIGN KEY (`cycle_id`) REFERENCES `vrp_lottery_cycles` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_lottery_draws_users` FOREIGN KEY (`winner_id`) REFERENCES `vrp_users` (`id`) ON DELETE CASCADE
@@ -59,3 +65,17 @@ CREATE TABLE IF NOT EXISTS `vrp_lottery_backup` (
   KEY `cycle_id` (`cycle_id`),
   KEY `winner_id` (`winner_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Trigger para backup automático
+DELIMITER //
+CREATE TRIGGER after_draw_insert
+AFTER INSERT ON vrp_lottery_draws
+FOR EACH ROW
+BEGIN
+    IF Config.Backup.Ativo THEN
+        INSERT INTO vrp_lottery_backup
+        SELECT *, NOW() FROM vrp_lottery_draws
+        WHERE id = NEW.id;
+    END IF;
+END //
+DELIMITER ;
