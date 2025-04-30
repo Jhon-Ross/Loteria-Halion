@@ -1,4 +1,4 @@
- # Sistema de Loteria - Halion City
+# Sistema de Loteria - Halion City
 
 ## Visão Geral
 Sistema de loteria automatizado integrado ao servidor FiveM GTARP Halion City. O sistema permite sorteios diários, controle administrativo e integração com a economia do servidor.
@@ -42,9 +42,23 @@ Registra os resultados dos sorteios realizados.
 | winner_id | INT(11) | ID do jogador ganhador (FK para vrp_users) |
 | prize_amount | INT(11) | Valor do prêmio distribuído |
 
+### Tabela: vrp_lottery_backup
+Armazena backup dos sorteios antigos.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | INT(11) | Identificador único do backup (AUTO_INCREMENT) |
+| draw_date | DATETIME | Data e hora do sorteio original |
+| ticket_id | INT(11) | ID do bilhete premiado |
+| cycle_id | INT(11) | ID do ciclo |
+| winner_id | INT(11) | ID do jogador ganhador |
+| prize_amount | INT(11) | Valor do prêmio distribuído |
+| backup_date | DATETIME | Data e hora do backup |
+
 ## Relacionamentos
 
 - `vrp_lottery_tickets.user_id` → `vrp_users.id`
+- `vrp_lottery_tickets.cycle_id` → `vrp_lottery_cycles.id`
 - `vrp_lottery_cycles.winner_id` → `vrp_users.id`
 - `vrp_lottery_draws.ticket_id` → `vrp_lottery_tickets.id`
 - `vrp_lottery_draws.cycle_id` → `vrp_lottery_cycles.id`
@@ -53,26 +67,46 @@ Registra os resultados dos sorteios realizados.
 ## Funcionamento do Sistema
 
 1. **Ciclos de Venda**:
-   - Cada ciclo tem um período definido de venda
+   - Cada ciclo tem um período definido de venda (24 horas)
    - Os jogadores podem comprar bilhetes durante o ciclo
    - Cada bilhete recebe um token único de 4 caracteres
+   - Valor do bilhete: R$1.000
+   - Verificação de saldo antes da compra
 
 2. **Sorteio**:
-   - Ao final do ciclo, o sistema realiza o sorteio
+   - Realizado automaticamente às 12:00
    - O ganhador é selecionado aleatoriamente entre os bilhetes válidos
-   - O prêmio é calculado com base no valor arrecadado
+   - Distribuição do prêmio:
+     - 10% para o ganhador
+     - 90% para a prefeitura
+   - Backup automático dos dados
 
 3. **Integração Econômica**:
    - Os valores são integrados com o sistema de economia do servidor
    - O prêmio é depositado automaticamente na conta do ganhador
    - Transações são registradas no sistema de banco
+   - Suporte para jogadores online e offline
 
 ## Segurança e Validações
 
-- Tokens únicos garantem que não haja duplicação de bilhetes
-- Chaves estrangeiras mantêm a integridade dos dados
-- Status do ciclo controla o fluxo de compras e sorteios
-- Registro completo de todas as transações
+1. **Integridade dos Dados**:
+   - Transações para operações críticas
+   - Rollback automático em caso de erro
+   - Validação de usuário antes da compra
+   - Verificação de saldo do jogador
+   - Tokens únicos garantem que não haja duplicação de bilhetes
+
+2. **Controle de Ciclos**:
+   - Verificação de ciclo aberto
+   - Prevenção de múltiplos ciclos simultâneos
+   - Status do ciclo controla o fluxo de compras e sorteios
+   - Registro completo de todas as transações
+
+3. **Backup e Histórico**:
+   - Backup automático de sorteios antigos
+   - Retenção de 30 dias de histórico
+   - Tabela separada para backup
+   - Rastreamento completo de todas as operações
 
 ## Integração com Discord
 
@@ -81,11 +115,15 @@ O sistema pode ser integrado com Discord para:
 - Notificação de ganhadores
 - Transparência nos sorteios
 - Estatísticas e rankings
+- Formatação personalizada com embeds
 
 ## Manutenção
 
 Para manter o sistema funcionando corretamente:
 1. Verificar regularmente a integridade dos dados
 2. Monitorar o desempenho das queries
-3. Fazer backup regular do banco de dados
-4. Atualizar os índices conforme necessário
+3. Verificar status das transações
+4. Monitorar o processo de backup
+5. Atualizar os índices conforme necessário
+6. Verificar logs de erros
+7. Manter o webhook do Discord atualizado
